@@ -135,8 +135,9 @@ def download_subtitle(message):
             with zipfile.ZipFile(zip_file_name, 'r') as zip_ref:
                 zip_ref.extractall(chat_dir)
         except zipfile.BadZipFile:
-            bot.edit_message_text("The file is corrupted.", msg.chat.id, msg.message_id, parse_mode='Markdown')
-
+            shutil.rmtree(chat_dir)
+            bot.edit_message_text("😰 The file is corrupted.", msg.chat.id, msg.message_id, parse_mode='Markdown')
+            return
         # Check if there are any .srt files in the main directory
         srt_files = [file for file in os.listdir(chat_dir) if file.endswith('.srt')]
 
