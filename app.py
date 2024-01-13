@@ -30,11 +30,12 @@ def send_welcome(message):
 
 
 @bot.message_handler(commands=['search'])
-def search_movie(message):
 
+def search_movie(message):
+    msg = bot.send_message(message.chat.id,"🔍 Searching....")
     # Check if the command is exactly '/search'
     if message.text.strip() == '/search':
-        bot.send_message(message.chat.id, "Please provide a movie name. For example, `/search Titanic`.")
+        bot.edit_message_text("Please provide a movie name. For example, `/search Titanic`.", msg.chat.id, msg.message_id)
         return
 
     # Get the movie name from the message
@@ -68,7 +69,7 @@ def search_movie(message):
                 movies.append((title, link, movie_data))
 
     if not movies:
-        bot.send_message(message.chat.id, "I'm sorry, but I couldn't find any movies matching your search.")
+        bot.edit_message_text("I'm sorry, but I couldn't find any movies matching your search.", msg.chat.id, msg.message_id)
         return
 
     movie_message = ""
@@ -81,11 +82,10 @@ def search_movie(message):
         db.insert_details(movie_id, title, year, link, overview)
 
         movie_message += f"🎬 *{title}* ({year})\n"
-        movie_message += f"{overview}\n"
         movie_message += f"_Download:_ /dl\_{movie_id}\n\n"
 
         # Send the message
-    bot.send_message(message.chat.id, movie_message, parse_mode='Markdown')
+    bot.edit_message_text(movie_message, msg.chat.id, msg.message_id, parse_mode='Markdown' )
 
 
 @bot.message_handler(regexp='^/dl')
@@ -97,6 +97,8 @@ def download_subtitle(message):
         return
     chat_dir = f'subtitles/{movie_id}'
 
+    msg = bot.send_message(message.chat.id, "⏫ Uploading the subtitles...")
+
     #check if directory exists
     if os.path.isdir(chat_dir):
         # Send all .srt files
@@ -104,7 +106,9 @@ def download_subtitle(message):
             if file.endswith('.srt'):
                 with open(os.path.join(chat_dir, file), 'rb') as f:
                     bot.send_document(message.chat.id, f)
+        bot.edit_message_text("✅ Subtitle Uploaded", msg.chat.id, msg.message_id, parse_mode='Markdown')
     else:
+        bot.edit_message_text("⏳ Almost Done...", msg.chat.id, msg.message_id, parse_mode='Markdown')
         r = requests.get(link)
         soup = BeautifulSoup(r.text, 'html.parser')
 
@@ -127,8 +131,11 @@ def download_subtitle(message):
             f.write(r.content)
 
         # Extract the .srt file
-        with zipfile.ZipFile(zip_file_name, 'r') as zip_ref:
-            zip_ref.extractall(chat_dir)
+        try:
+            with zipfile.ZipFile(zip_file_name, 'r') as zip_ref:
+                zip_ref.extractall(chat_dir)
+        except zipfile.BadZipFile:
+            bot.edit_message_text("The file is corrupted.", msg.chat.id, msg.message_id, parse_mode='Markdown')
 
         # Check if there are any .srt files in the main directory
         srt_files = [file for file in os.listdir(chat_dir) if file.endswith('.srt')]
@@ -154,5 +161,6 @@ def download_subtitle(message):
             if file.endswith('.srt'):
                 with open(os.path.join(chat_dir, file), 'rb') as f:
                     bot.send_document(message.chat.id, f)
+        bot.edit_message_text("✅ Subtitle Uploaded", msg.chat.id, msg.message_id, parse_mode='Markdown')
 
 bot.polling()
