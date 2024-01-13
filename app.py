@@ -92,6 +92,9 @@ def search_movie(message):
 def download_subtitle(message):
     movie_id = message.text.split('/dl_', 1)[1].strip()
     link = db.get_link(movie_id)
+    if link is None:
+        bot.reply_to(message, "This command is incorrect. Please provide a valid command.")
+        return
     chat_dir = f'subtitles/{movie_id}'
 
     #check if directory exists

@@ -22,6 +22,11 @@ def get_link(movie_id):
     conn = connect_db()
     c = conn.cursor()
     c.execute("SELECT baiscope_link FROM movie_details WHERE movie_id = ?", (movie_id,))
-    link = c.fetchone()[0]
-    conn.close()
-    return link
+    result = c.fetchone()
+    if result is None:
+        conn.close()
+        return None
+    else:
+        link = result[0]
+        conn.close()
+        return link
