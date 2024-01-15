@@ -264,20 +264,27 @@ def handle_season_button(call):
     _, series_id, _, season = call.data.split('_')
     series_id = int(series_id)
     season = int(season)
-    msg = bot.send_message(call.message.chat.id, "🔍 Searching for the subtitles...")
+
     logger.info(f"Handling season button for series_id {series_id} and season {season}")
+    msg = bot.send_message(call.message.chat.id, "🔍 Searching for the subtitles...")
+
+    # Define the directory of the season
+    season_dir = f'subtitles/series/{series_id}/{season}'
 
     # Retrieve the episode numbers and links from the database
     episodes = db.get_series_links(series_id, season)
 
-    # Download all subtitles and save them
-    for season, episode, link in episodes:
-        chat_dir = f'subtitles/series/{series_id}/{season}/{episode}'
-        os.makedirs(chat_dir, exist_ok=True)
+    # Check if the season directory exists
+    if not os.path.isdir(season_dir):
+        # Download all subtitles and save them
+        for season, episode, link in episodes:
+            chat_dir = f'subtitles/series/{series_id}/{season}/{episode}'
+            os.makedirs(chat_dir, exist_ok=True)
 
-        # download & extract zip
-        download_extract_zip(link, chat_dir, bot, msg)
-
+            # download & extract zip
+            download_extract_zip(link, chat_dir, bot, msg)
+    else:
+        logger.info(f"Subtitles for series_id {series_id} and season {season} already exist")
     # Create a message with a keyboard of episodes
     keyboard = types.InlineKeyboardMarkup()
     row = []
