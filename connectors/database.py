@@ -2,7 +2,7 @@ import sqlite3
 
 
 def connect_db():
-    return sqlite3.connect('movie_details.db')
+    return sqlite3.connect('connectors/movie_details.db')
 
 
 def create_table_movie():
@@ -18,7 +18,7 @@ def create_table_tv():
     conn = connect_db()
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS tv_details (series_id text, series_name text, year text, season integer, 
-    episode integer, baiscope_link text UNIQUE, overview text)''')
+    episode integer, baiscope_link text UNIQUE, overview text, updated text)''')
     conn.commit()
     conn.close()
 
@@ -46,11 +46,11 @@ def get_link(movie_id):
         return link
 
 
-def insert_tv_details(series_id, series_name, year, season, episode, baiscope_link, overview):
+def insert_tv_details(series_id, series_name, year, season, episode, baiscope_link, overview, updated):
     conn = connect_db()
     c = conn.cursor()
-    c.execute("INSERT OR IGNORE INTO tv_details VALUES (?,?,?,?,?,?,?)",
-              (series_id, series_name, year, season, episode, baiscope_link, overview))
+    c.execute("INSERT OR IGNORE INTO tv_details VALUES (?,?,?,?,?,?,?,?)",
+              (series_id, series_name, year, season, episode, baiscope_link, overview, updated))
     conn.commit()
     conn.close()
 
@@ -58,13 +58,14 @@ def insert_tv_details(series_id, series_name, year, season, episode, baiscope_li
 def get_series_links(series_id, season):
     conn = connect_db()
     c = conn.cursor()
-    c.execute("SELECT episode, baiscope_link FROM tv_details WHERE series_id = ? AND season = ?", (series_id, season))
+    c.execute("SELECT episode, baiscope_link, updated, series_name FROM tv_details WHERE series_id = ? AND season = ?",
+              (series_id, season))
     rows = c.fetchall()
     if rows is None:
         conn.close()
         return None
     else:
-        return sorted([(season, row[0], row[1]) for row in rows], key=lambda x: x[1])
+        return sorted([(season, row[0], row[1], row[2], row[3]) for row in rows], key=lambda x: x[1])
 
 
 def get_series_name(series_id):
@@ -85,8 +86,19 @@ def check_series_available(series_id):
     conn = connect_db()
     c = conn.cursor()
     # Execute a SELECT statement to check if the series_id exists
-    c.execute("SELECT series_name, year, season, episode, baiscope_link FROM tv_details WHERE series_id = ?", (series_id,))
+    c.execute("SELECT series_name, year, season, episode, baiscope_link FROM tv_details WHERE series_id = ?",
+              (series_id,))
     result = c.fetchall()
     conn.close()
     return result
 
+
+def fetch_old_data(series_id):
+    conn = connect_db()
+    c = conn.cursor()
+    c.execute("SELECT series_name, year, season, episode, baiscope_link, overview, updated FROM tv_details WHERE "
+              "series_id = ?",
+              (series_id,))
+    result = c.fetchall()
+    conn.close()
+    return result

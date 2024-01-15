@@ -1,4 +1,4 @@
 .env
 subtitles
-bot.log
+logs
 movie_details.db

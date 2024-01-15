@@ -32,7 +32,7 @@ def download_extract_zip(link, chat_dir, bot, msg):
         elif '7z' in content_type:
             file_name = 'default.7z'
         else:
-            file_name = 'default.zip'  # Default to .zip if Content-Type header is not recognized
+            file_name = 'default.zip'
     else:
         _, ext = os.path.splitext(file_name)
         if ext not in ['.zip', '.rar', '.7z']:
@@ -68,7 +68,7 @@ def download_extract_zip(link, chat_dir, bot, msg):
         # No .srt files found in the main directory, find them in subdirectories
         for root, dirs, files in os.walk(chat_dir):
             for file in files:
-                if file.endswith(('.srt', '.ass', '.ssa', '.vtt', '.stl', '.scc', '.ttml', '.sbv')):
+                if file.endswith(('.srt', '.ass', '.ssa', '.vtt', '.stl', '.scc', '.ttml', '.sbv', '.idx', '.sub')):
                     # Move the .srt file to the main directory
                     shutil.move(os.path.join(root, file), chat_dir)
 
@@ -77,7 +77,7 @@ def download_extract_zip(link, chat_dir, bot, msg):
     # Delete all files that are not subtitle files
     for root, dirs, files in os.walk(chat_dir, topdown=False):
         for file in files:
-            if not file.endswith(('.srt', '.ass', '.ssa', '.vtt', '.stl', '.scc', '.ttml', '.sbv')):
+            if not file.endswith(('.srt', '.ass', '.ssa', '.vtt', '.stl', '.scc', '.ttml', '.sbv', '.idx', '.sub')):
                 os.remove(os.path.join(root, file))
         for dir in dirs:
             shutil.rmtree(os.path.join(root, dir))
