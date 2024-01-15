@@ -53,8 +53,11 @@ def send_welcome(message):
     welcome_message += ("I'm here to help you find and download Sinhala subtitles for your favorite movies. Here's "
                         "what I can do:\n\n")
     welcome_message += ("1. **Search for Movies**: You can search for a movie by its name, and I'll find the Sinhala "
-                        "subtitles for it. To do this, use the `/search` command followed by the movie name. For "
-                        "example, `/search Titanic`.\n\n")
+                        "subtitles for it. To do this, use the `/movie` command followed by the movie name. For "
+                        "example, `/movie Titanic`.\n\n")
+    welcome_message += ("2. **Search for TV Series**: You can search for a tv series by its name, and I'll find the Sinhala "
+                        "subtitles for it. To do this, use the `/tv` command followed by the series name. For "
+                        "example, `/tv Breaking Bad`.\n\n")
     welcome_message += ("*Disclaimer*: _This bot merely provides a means to share subtitles found on the internet. "
                         "All subtitles shared by this bot are the property of their respective owners. Any credits and "
                         "intellectual property rights associated with the subtitles belong solely to the original "
