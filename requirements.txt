@@ -1,0 +1,7 @@
+beautifulsoup4==4.12.2
+py7zr==0.20.8
+pyTelegramBotAPI==4.14.1
+pyTelegramBotAPI==4.15.1
+python-dotenv==1.0.0
+rarfile==4.1
+Requests==2.31.0
