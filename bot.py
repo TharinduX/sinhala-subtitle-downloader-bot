@@ -217,7 +217,7 @@ def handle_season_button(call):
     # Check if the season directory exists
     if not os.path.isdir(season_dir):
         # Download all subtitles and save them
-        for season, episode, link in episodes:
+        for season, episode, link, updated, series_name in episodes:
             chat_dir = f'subtitles/series/{series_id}/{season}/{episode}'
             os.makedirs(chat_dir, exist_ok=True)
 
