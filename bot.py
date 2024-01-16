@@ -24,18 +24,18 @@ def send_welcome(message):
     welcome_message = "👋 *Welcome to the Sinhala Subtitle Download Bot!* 🎬\n\n"
     welcome_message += ("I'm here to help you find and download Sinhala subtitles for your favorite movies. Here's "
                         "what I can do:\n\n")
-    welcome_message += ("1. **Search for Movies**: You can search for a movie by its name, and I'll find the Sinhala "
-                        "subtitles for it. To do this, use the `/movie` command followed by the movie name. For "
-                        "example, `/movie Titanic`.\n\n")
-    welcome_message += (
-        "2. **Search for TV Series**: You can search for a tv series by its name, and I'll find the Sinhala "
-        "subtitles for it. To do this, use the `/tv` command followed by the series name. For "
-        "example, `/tv Breaking Bad`.\n\n")
-    welcome_message += ("*Disclaimer*: _This bot merely provides a means to share subtitles found on the internet. "
-                        "All subtitles shared by this bot are the property of their respective owners. Any credits and "
+    welcome_message += ("1. 🎥 **Search for Movies**: You can search for a movie by its name, and I'll find the "
+                        "Sinhala subtitles for it. To do this, use the `/movie` command followed by the movie name. "
+                        "For example, `/movie Titanic`.\n\n")
+    welcome_message += ("2. 📺 **Search for TV Series**: You can search for a tv series by its name, and I'll find the "
+                        "Sinhala subtitles for it. To do this, use the `/tv` command followed by the series name. For "
+                        "example, `/tv Breaking Bad`.\n\n")
+    welcome_message += ("*Disclaimer*: _This bot merely provides a means to share subtitles found on the internet. All "
+                        "subtitles shared by this bot are the property of their respective owners. Any credits and "
                         "intellectual property rights associated with the subtitles belong solely to the original "
-                        "owners. This bot does not claim any ownership or responsibility for the subtitles shared._")
-    bot.reply_to(message, welcome_message, parse_mode='Markdown')
+                        "owners. This bot does not claim any ownership or responsibility for the subtitles shared._ 📝")
+    photo = open('images/icon.jpg', 'rb')
+    bot.send_photo(message.chat.id, photo, caption=welcome_message, parse_mode='Markdown')
 
 
 @bot.message_handler(commands=['movie'])
@@ -285,7 +285,8 @@ def download_subtitle(call):
             if file.endswith(('.srt', '.ass', '.ssa', '.vtt', '.stl', '.scc', '.ttml', '.sbv', '.idx', '.sub')):
                 with open(os.path.join(exists, file), 'rb') as f:
                     bot.send_document(call.message.chat.id, f)
-        bot.edit_message_text(f"✅ {name} S{season}:E{episode} Subtitle Uploaded", msg.chat.id, msg.message_id, parse_mode='Markdown')
+        bot.edit_message_text(f"✅ {name} S{season}:E{episode} Subtitle Uploaded", msg.chat.id, msg.message_id,
+                              parse_mode='Markdown')
     else:
         bot.reply_to(call.message, "The subtitles for this episode are not available. Please try another episode.")
         logger.error(f"Subtitles not found for series_id {series_id}, season {season}, episode {episode}")
@@ -334,7 +335,6 @@ def zip_download(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('update_'))
 def handle_update_button(call):
-
     # Extract the series ID and season number from the callback data
     _, series_id, _, season = call.data.split('_')
     series_id = int(series_id)
@@ -390,7 +390,8 @@ def handle_update_button(call):
         keyboard.row(update_all)
 
         message_season = f"*Download {episodes[0][4]} : Season {season}*\n _(Last updated: {datetime.datetime.strptime(episodes[0][3], '%Y-%m-%dT%H:%M:%S.%f').strftime('%d %B %Y, %H:%M:%S')})_"
-        bot.edit_message_text(message_season, call.message.chat.id, call.message.message_id, reply_markup=keyboard, parse_mode='Markdown')
+        bot.edit_message_text(message_season, call.message.chat.id, call.message.message_id, reply_markup=keyboard,
+                              parse_mode='Markdown')
         logger.info(f"Sent message for series_id {series_id} and season {season}")
 
 
