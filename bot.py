@@ -373,7 +373,7 @@ def handle_update_button(call):
             # Check if subtitles exist for the episode
             subtitle_exists = os.path.isdir(f'subtitles/series/{series_id}/{season}/{episode}')
             # Add a check or uncheck emoji based on whether subtitles exist
-            episode_text = f"✅ {episode}" if subtitle_exists else f"❌ {episode}"
+            episode_text = f"✅ E{episode}" if subtitle_exists else f"❌ E{episode}"
             callback_data = f"episode_{episode}_season_{season}_series_id_{series_id}"
             button = types.InlineKeyboardButton(text=episode_text, callback_data=callback_data)
             row.append(button)
