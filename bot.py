@@ -392,6 +392,7 @@ def handle_update_button(call):
         message_season = f"*Download {episodes[0][4]} : Season {season}*\n _(Last updated: {datetime.datetime.strptime(episodes[0][3], '%Y-%m-%dT%H:%M:%S.%f').strftime('%d %B %Y, %H:%M:%S')})_"
         bot.edit_message_text(message_season, call.message.chat.id, call.message.message_id, reply_markup=keyboard,
                               parse_mode='Markdown')
+        bot.delete_message(msg.chat.id, msg.message_id)
         logger.info(f"Sent message for series_id {series_id} and season {season}")
 
 
