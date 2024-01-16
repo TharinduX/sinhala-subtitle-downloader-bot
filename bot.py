@@ -41,9 +41,9 @@ def send_welcome(message):
 @bot.message_handler(commands=['movie'])
 def search_movie(message):
     msg = bot.send_message(message.chat.id, "🔍 Searching....")
-    # Check if the command is exactly '/search'
+    # Check if the command is exactly '/movie'
     if message.text.strip() == '/movie':
-        bot.edit_message_text("Please provide a movie name. For example, `/search Titanic`.", msg.chat.id,
+        bot.edit_message_text("Please provide a movie name. For example, `/movie Titanic`.", msg.chat.id,
                               msg.message_id)
         return
 
