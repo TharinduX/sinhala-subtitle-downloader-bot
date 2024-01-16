@@ -49,7 +49,7 @@ def get_link(movie_id):
 def insert_tv_details(series_id, series_name, year, season, episode, baiscope_link, overview, updated):
     conn = connect_db()
     c = conn.cursor()
-    c.execute("INSERT OR IGNORE INTO tv_details VALUES (?,?,?,?,?,?,?,?)",
+    c.execute("INSERT OR REPLACE INTO tv_details VALUES (?,?,?,?,?,?,?,?)",
               (series_id, series_name, year, season, episode, baiscope_link, overview, updated))
     conn.commit()
     conn.close()
@@ -102,3 +102,5 @@ def fetch_old_data(series_id):
     result = c.fetchall()
     conn.close()
     return result
+
+

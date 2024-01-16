@@ -161,6 +161,7 @@ def search_tv(message):
     results = database.check_series_available(series_id)
 
     if results:
+        row = []
         tv_message = ""
         # Create a message with a keyboard of seasons
         seasons = sorted(set(season for series_name, year, season, episode, link in results))
@@ -171,7 +172,12 @@ def search_tv(message):
         for season in seasons:
             button = types.InlineKeyboardButton(text=f"Season {season}",
                                                 callback_data=f"series_{series_id}_season_{season}")
-            keyboard.add(button)
+            row.append(button)
+            if len(row) == 3:
+                keyboard.row(*row)
+                row = []
+        if row:
+            keyboard.row(*row)
         bot.send_photo(msg.chat.id, f"https://image.tmdb.org/t/p/original{series_data['poster_path']}",
                        caption=tv_message, reply_markup=keyboard, parse_mode='Markdown')
         bot.delete_message(msg.chat.id, msg.message_id, timeout=None)
@@ -183,6 +189,7 @@ def search_tv(message):
                                   msg.message_id)
             return
 
+        row = []
         tv_message = ""
         # Create a message with a keyboard of seasons
         seasons = sorted(set(season for title, season, episode, link in series))
@@ -193,7 +200,13 @@ def search_tv(message):
         for season in seasons:
             button = types.InlineKeyboardButton(text=f"Season {season}",
                                                 callback_data=f"series_{series_id}_season_{season}")
-            keyboard.add(button)
+            row.append(button)
+            if len(row) == 3:
+                keyboard.row(*row)
+                row = []
+        if row:
+            keyboard.row(*row)
+
         bot.send_photo(msg.chat.id, f"https://image.tmdb.org/t/p/original{series_data['poster_path']}",
                        caption=tv_message, reply_markup=keyboard, parse_mode='Markdown')
         bot.delete_message(msg.chat.id, msg.message_id, timeout=None)
@@ -247,7 +260,7 @@ def handle_season_button(call):
                                             callback_data=f"update_{series_id}_season_{season}")
     keyboard.row(download_all_button)
     keyboard.row(update_all)
-    message_season = f"*Download {episodes[0][4]} : Season {season}*\n _(Last updated: {datetime.datetime.strptime(episodes[0][3], '%Y-%m-%dT%H:%M:%S.%f').strftime('%d %B %Y')})_"
+    message_season = f"*Download {episodes[0][4]} : Season {season}*\n _(Last updated: {datetime.datetime.strptime(episodes[0][3], '%Y-%m-%dT%H:%M:%S.%f').strftime('%d %B %Y, %H:%M:%S')})_"
     bot.edit_message_text(message_season, msg.chat.id, msg.message_id, reply_markup=keyboard, parse_mode='Markdown')
 
     logger.info(f"Sent message for series_id {series_id} and season {season}")
@@ -264,7 +277,7 @@ def download_subtitle(call):
     logger.info(f"Uploading subtitles for series_id {series_id}, season {season}, episode {episode}")
 
     msg = bot.send_message(call.message.chat.id, "⏫ Uploading the subtitles...")
-
+    name = database.get_series_name(series_id)
     exists = f'subtitles/series/{series_id}/{season}/{episode}'
     # check if directory exists
     if os.path.isdir(exists):
@@ -272,7 +285,7 @@ def download_subtitle(call):
             if file.endswith(('.srt', '.ass', '.ssa', '.vtt', '.stl', '.scc', '.ttml', '.sbv', '.idx', '.sub')):
                 with open(os.path.join(exists, file), 'rb') as f:
                     bot.send_document(call.message.chat.id, f)
-        bot.edit_message_text("✅ Subtitle Uploaded", msg.chat.id, msg.message_id, parse_mode='Markdown')
+        bot.edit_message_text(f"✅ {name} S{season}:E{episode} Subtitle Uploaded", msg.chat.id, msg.message_id, parse_mode='Markdown')
     else:
         bot.reply_to(call.message, "The subtitles for this episode are not available. Please try another episode.")
         logger.error(f"Subtitles not found for series_id {series_id}, season {season}, episode {episode}")
@@ -340,7 +353,7 @@ def handle_update_button(call):
         bot.edit_message_text("The subtitles are already updated today.", msg.chat.id, msg.message_id)
         return
     else:
-        new_data = fetch_series(config.HOST_URL, old_data[0][0], series_id, old_data[0][1], old_data[0][5])
+        fetch_series(config.HOST_URL, old_data[0][0], series_id, old_data[0][1], old_data[0][5])
         # Retrieve the episode numbers and links from the database
         episodes = database.get_series_links(series_id, season)
 
@@ -376,7 +389,7 @@ def handle_update_button(call):
         keyboard.row(download_all_button)
         keyboard.row(update_all)
 
-        message_season = f"*Download {episodes[0][4]} : Season {season}*\n _(Last updated: {datetime.datetime.strptime(episodes[0][3], '%Y-%m-%dT%H:%M:%S.%f').strftime('%d %B %Y')})_"
+        message_season = f"*Download {episodes[0][4]} : Season {season}*\n _(Last updated: {datetime.datetime.strptime(episodes[0][3], '%Y-%m-%dT%H:%M:%S.%f').strftime('%d %B %Y, %H:%M:%S')})_"
         bot.edit_message_text(message_season, call.message.chat.id, call.message.message_id, reply_markup=keyboard, parse_mode='Markdown')
         logger.info(f"Sent message for series_id {series_id} and season {season}")
 
