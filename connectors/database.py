@@ -86,7 +86,8 @@ def check_series_available(series_id):
     conn = connect_db()
     c = conn.cursor()
     # Execute a SELECT statement to check if the series_id exists
-    c.execute("SELECT series_name, year, season, episode, baiscope_link FROM tv_details WHERE series_id = ?",
+    c.execute("SELECT series_name, year, season, episode, baiscope_link, overview, updated FROM tv_details WHERE "
+              "series_id = ?",
               (series_id,))
     result = c.fetchall()
     conn.close()

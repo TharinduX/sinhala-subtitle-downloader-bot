@@ -7,10 +7,12 @@ import shutil
 import rarfile
 import logging
 import py7zr
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def download_extract_zip(link, chat_dir, bot, msg):
-    logger = logging.getLogger(__name__)
     logger.info(f"Downloading subtitles from {link} to {chat_dir}")
 
     # Download the zip file
@@ -56,7 +58,8 @@ def download_extract_zip(link, chat_dir, bot, msg):
                 z.extractall(path=chat_dir)
     except (zipfile.BadZipFile, rarfile.BadRarFile, py7zr.exceptions.Bad7zFile):
         shutil.rmtree(chat_dir)
-        bot.edit_message_text("😰 The file is corrupted.", msg.chat.id, msg.message_id, parse_mode='Markdown')
+        bot.edit_message_text("😰 Some files are corrupted. Trying to upload the rest..", msg.chat.id, msg.message_id,
+                              parse_mode='Markdown')
         logger.error(f"Failed to extract subtitles from {zip_file_name}")
         return
 
