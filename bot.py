@@ -7,14 +7,15 @@ from urllib.parse import quote_plus
 import re
 from telebot import types
 import datetime
-from config import config
+from config import config, logging
 from connectors import database
 from helpers.fetch_series import fetch_series
+from helpers.fetch_series_names import fetch_series_names
 from helpers.zip_helper import download_extract_zip
 from config.logging import logger
 
 bot = telebot.TeleBot(config.TOKEN)
-
+logging.set_bot(bot)
 database.create_table_movie()
 database.create_table_tv()
 
@@ -40,9 +41,11 @@ def send_welcome(message):
 
 @bot.message_handler(commands=['movie'])
 def search_movie(message):
+    logger.info("Received a request to search for a movie.")
     msg = bot.send_message(message.chat.id, "🔍 Searching....")
     # Check if the command is exactly '/movie'
     if message.text.strip() == '/movie':
+        logger.info("No movie name provided. Requesting movie name.")
         bot.edit_message_text("Please provide a movie name. For example, `/movie Titanic`.", msg.chat.id,
                               msg.message_id)
         return
@@ -59,6 +62,7 @@ def search_movie(message):
     movies = []
     for h2 in soup.find_all('h2', class_='entry-title'):
         if len(movies) >= 5:  # Stop after finding 5 movies
+            logger.info("Found 5 movies. Breaking the loop.")
             break
         a = h2.find('a', href=True)
         text = a.text
@@ -76,8 +80,10 @@ def search_movie(message):
             if tmdb_response['results']:
                 movie_data = tmdb_response['results'][0]
                 movies.append((title, link, movie_data))
+                logger.info(f"Added movie to the list: {title}")
 
     if not movies:
+        logger.info("No movies found matching the search.")
         bot.edit_message_text("I'm sorry, but I couldn't find any movies matching your search.", msg.chat.id,
                               msg.message_id)
         return
@@ -90,19 +96,21 @@ def search_movie(message):
         overview = movie_data['overview']
         year = re.search(r'\d{4}', movie_data['release_date']).group()
         database.insert_details(movie_id, title, year, link, overview)
-
+        logger.info(f"Inserted movie details into the database: {title}, Year: {year}")
         movie_message += f"🎬 *{title}* ({year})\n"
         movie_message += f"_Download:_ /dl\_{movie_id}\n\n"
-
         # Send the message
+    logger.info("Sending the message with the found movies.")
     bot.edit_message_text(movie_message, msg.chat.id, msg.message_id, parse_mode='Markdown')
 
 
 @bot.message_handler(regexp='^/dl')
 def download_subtitle(message):
+    logger.info("Received a request to download subtitles.")
     movie_id = message.text.split('/dl_', 1)[1].strip()
     link = database.get_link(movie_id)
     if link is None:
+        logger.error("Invalid command. No link found for the provided movie ID.")
         bot.reply_to(message, "This command is incorrect. Please provide a valid command.")
         return
     chat_dir = f'subtitles/movies/{movie_id}'
@@ -111,6 +119,7 @@ def download_subtitle(message):
 
     # check if directory exists
     if os.path.isdir(chat_dir):
+        logger.info("Directory exists. Sending all .srt files.")
         # Send all .srt files
         for file in os.listdir(chat_dir):
             if file.endswith('.srt'):
@@ -118,6 +127,7 @@ def download_subtitle(message):
                     bot.send_document(message.chat.id, f)
         bot.edit_message_text("✅ Subtitle Uploaded", msg.chat.id, msg.message_id, parse_mode='Markdown')
     else:
+        logger.info("Directory does not exist. Creating directory and downloading subtitles.")
         bot.edit_message_text("⏳ Almost Done...", msg.chat.id, msg.message_id, parse_mode='Markdown')
 
         # Create a unique directory for this chat
@@ -135,81 +145,125 @@ def download_subtitle(message):
 
 @bot.message_handler(commands=['tv'])
 def search_tv(message):
-    msg = bot.send_message(message.chat.id, "🔍 Searching for the subtitles...")
+    logger.info("Received a request to search for a TV series.")
+    msg = bot.send_message(message.chat.id, "🔍 Searching for the tv series...")
     # Check if the command is exactly '/tv'
     if message.text.strip() == '/tv':
+        logger.info("No series name provided. Requesting series name.")
         bot.edit_message_text("Please provide a tv series name. For example, `/tv breaking bad`.", msg.chat.id,
                               msg.message_id)
         return
 
     # Get the series name from the message
     series_name = message.text.split('/tv ', 1)[1].strip()
+    logger.info(f"Series name: {series_name}")
+    # Fetch series names from your website
+    series_names = fetch_series_names(config.HOST_URL, series_name)
 
-    # Get series details
-    tmdb_url = f'https://api.themoviedb.org/3/search/tv?api_key={config.TMDB_API_KEY}&query={quote_plus(series_name)}'
-    tmdb_response = requests.get(tmdb_url).json()
-    if tmdb_response['results']:
-        series_data = tmdb_response['results'][0]
-        series_id = series_data['id']
-        overview = series_data['overview']
-        year = re.search(r'\d{4}', series_data['first_air_date']).group()
-    else:
-        bot.edit_message_text("I'm sorry, but I couldn't find any series matching your search.", msg.chat.id,
+    if not series_names:
+        logger.info("No series found matching the search.")
+        bot.edit_message_text("I'm sorry, but I couldn't find any series matching your search", msg.chat.id,
                               msg.message_id)
         return
 
-    results = database.check_series_available(series_id)
+    tv_message = ""
 
-    if results:
-        row = []
-        tv_message = ""
-        # Create a message with a keyboard of seasons
-        seasons = sorted(set(season for series_name, year, season, episode, link in results))
-        keyboard = types.InlineKeyboardMarkup()
-        tv_message += f"🎬 *{series_data['name']}* ({year})\n\n"
-        tv_message += f"{series_data['overview']}\n\n"
-        tv_message += f"Please select a season:"
-        for season in seasons:
-            button = types.InlineKeyboardButton(text=f"Season {season}",
-                                                callback_data=f"series_{series_id}_season_{season}")
-            row.append(button)
-            if len(row) == 3:
+    for name in series_names:
+        # Get series details from TMDB
+        tmdb_url = f'https://api.themoviedb.org/3/search/tv?api_key={config.TMDB_API_KEY}&query={quote_plus(name)}'
+        tmdb_response = requests.get(tmdb_url).json()
+
+        if tmdb_response['results']:
+            series_data = tmdb_response['results'][0]
+            series_id = series_data['id']
+
+            year = re.search(r'\d{4}', series_data['first_air_date']).group()
+            logger.info(f"Found series: {series_data['name']} ({year})")
+            tv_message += f"🎬 *{series_data['name']}* ({year})\n"
+            tv_message += f"_Select:_ /s\_{series_id}\n\n"
+
+    # Send the message
+    logger.info("Sending the message with the found series.")
+    bot.edit_message_text(tv_message, msg.chat.id, msg.message_id, parse_mode='Markdown')
+
+
+@bot.message_handler(regexp='^/s')
+def download_subtitle(message):
+    logger.info("Received a request to download subtitles.")
+    msg = bot.send_message(message.chat.id, "🔍 Searching for the subtitles...")
+    series_id = message.text.split('/s_', 1)[1].strip()
+    logger.info(f"Series ID: {series_id}")
+    tmdb_url = f'https://api.themoviedb.org/3/tv/{series_id}?api_key={config.TMDB_API_KEY}'
+    response = requests.get(tmdb_url)
+    if response.status_code == 200:
+        logger.info("Successfully retrieved series information from TMDB.")
+        tmdb_response = response.json()
+        series_name = tmdb_response['name']
+        year = re.search(r'\d{4}', tmdb_response['first_air_date']).group()
+        overview = tmdb_response['overview']
+        poster_path = tmdb_response['poster_path']
+        results = database.check_series_available(series_id)
+        current_datetime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
+        if results and current_datetime[:10] == results[0][6]:
+            logger.info("Series is available in the database & its up to date")
+            row = []
+            tv_message = ""
+            # Create a message with a keyboard of seasons
+            seasons = sorted(set(season for series_name, year, season, episode, link, overview, updated in results))
+            keyboard = types.InlineKeyboardMarkup()
+            tv_message += f"🎬 *{results[0][0]}* ({results[0][1]})\n\n"
+            tv_message += f"{results[0][5]}\n\n"
+            tv_message += f"Please select a season:"
+            for season in seasons:
+                button = types.InlineKeyboardButton(text=f"Season {season}",
+                                                    callback_data=f"series_{series_id}_season_{season}")
+                row.append(button)
+                if len(row) == 3:
+                    keyboard.row(*row)
+                    row = []
+            if row:
                 keyboard.row(*row)
-                row = []
-        if row:
-            keyboard.row(*row)
-        bot.send_photo(msg.chat.id, f"https://image.tmdb.org/t/p/original{series_data['poster_path']}",
-                       caption=tv_message, reply_markup=keyboard, parse_mode='Markdown')
-        bot.delete_message(msg.chat.id, msg.message_id, timeout=None)
+            bot.send_photo(msg.chat.id, f"https://image.tmdb.org/t/p/original{tmdb_response['poster_path']}",
+                           caption=tv_message, reply_markup=keyboard, parse_mode='Markdown')
+            bot.delete_message(msg.chat.id, msg.message_id, timeout=None)
+
+        else:
+            logger.info("Series is not available in the database or not uptodate. Fetching series.")
+            series = fetch_series(config.HOST_URL, series_name, series_id, year, overview)
+
+            if not series:
+                bot.edit_message_text("I'm sorry, but I couldn't find any series matching your search.", msg.chat.id,
+                                      msg.message_id)
+                return
+
+            row = []
+            tv_message = ""
+            # Create a message with a keyboard of seasons
+            seasons = sorted(set(season for title, season, episode, link in series))
+            keyboard = types.InlineKeyboardMarkup()
+            tv_message += f"🎬 *{series_name}* ({year})\n\n"
+            tv_message += f"{overview}\n\n"
+            tv_message += f"Please select a season:"
+            for season in seasons:
+                button = types.InlineKeyboardButton(text=f"Season {season}",
+                                                    callback_data=f"series_{series_id}_season_{season}")
+                row.append(button)
+                if len(row) == 3:
+                    keyboard.row(*row)
+                    row = []
+            if row:
+                keyboard.row(*row)
+
+            bot.send_photo(msg.chat.id, f"https://image.tmdb.org/t/p/original{poster_path}",
+                           caption=tv_message, reply_markup=keyboard, parse_mode='Markdown')
+            bot.delete_message(msg.chat.id, msg.message_id, timeout=None)
+
+    elif response.status_code == 404:
+        logger.error("Could not find a series with the provided ID.")
+        bot.send_message(message.chat.id, "I'm sorry, but I couldn't find a series with that ID.")
     else:
-        series = fetch_series(config.HOST_URL, series_name, series_id, year, overview)
-
-        if not series:
-            bot.edit_message_text("I'm sorry, but I couldn't find any series matching your search.", msg.chat.id,
-                                  msg.message_id)
-            return
-
-        row = []
-        tv_message = ""
-        # Create a message with a keyboard of seasons
-        seasons = sorted(set(season for title, season, episode, link in series))
-        keyboard = types.InlineKeyboardMarkup()
-        tv_message += f"🎬 *{series_data['name']}* ({year})\n\n"
-        tv_message += f"{series_data['overview']}\n\n"
-        tv_message += f"Please select a season:"
-        for season in seasons:
-            button = types.InlineKeyboardButton(text=f"Season {season}",
-                                                callback_data=f"series_{series_id}_season_{season}")
-            row.append(button)
-            if len(row) == 3:
-                keyboard.row(*row)
-                row = []
-        if row:
-            keyboard.row(*row)
-
-        bot.send_photo(msg.chat.id, f"https://image.tmdb.org/t/p/original{series_data['poster_path']}",
-                       caption=tv_message, reply_markup=keyboard, parse_mode='Markdown')
-        bot.delete_message(msg.chat.id, msg.message_id, timeout=None)
+        logger.error("An error occurred while trying to retrieve the series information.")
+        bot.send_message(message.chat.id, "Something went wrong. Please try again later.")
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('series_'))
@@ -256,10 +310,7 @@ def handle_season_button(call):
         keyboard.row(*row)
     download_all_button = types.InlineKeyboardButton(text="📥 Download All (.zip)",
                                                      callback_data=f"zip_{series_id}_season_{season}")
-    update_all = types.InlineKeyboardButton(text="🔄 Update",
-                                            callback_data=f"update_{series_id}_season_{season}")
     keyboard.row(download_all_button)
-    keyboard.row(update_all)
     message_season = f"*Download {episodes[0][4]} : Season {season}*\n _(Last updated: {datetime.datetime.strptime(episodes[0][3], '%Y-%m-%dT%H:%M:%S.%f').strftime('%d %B %Y, %H:%M:%S')})_"
     bot.edit_message_text(message_season, msg.chat.id, msg.message_id, reply_markup=keyboard, parse_mode='Markdown')
 
@@ -331,69 +382,6 @@ def zip_download(call):
                           parse_mode='Markdown')
 
     logger.info(f'Sent zip file for series_id {series_id} and season {season}')
-
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith('update_'))
-def handle_update_button(call):
-    # Extract the series ID and season number from the callback data
-    _, series_id, _, season = call.data.split('_')
-    series_id = int(series_id)
-    season = int(season)
-    msg = bot.send_message(call.message.chat.id, "🔄 Updating subtitles...")
-    logger.info(f"Updating subtitles for series_id {series_id} and season {season}")
-
-    old_data = database.fetch_old_data(series_id)
-
-    # Get the current date and time
-    current_datetime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
-
-    # Get the last updated date and time from the database
-    last_updated_datetime = old_data[0][6]
-    if current_datetime[:10] == last_updated_datetime[:10]:
-        bot.edit_message_text("The subtitles are already updated today.", msg.chat.id, msg.message_id)
-        return
-    else:
-        fetch_series(config.HOST_URL, old_data[0][0], series_id, old_data[0][1], old_data[0][5])
-        # Retrieve the episode numbers and links from the database
-        episodes = database.get_series_links(series_id, season)
-
-        # Download all subtitles and save them
-        for season, episode, link, updated, series_name in episodes:
-            chat_dir = f'subtitles/series/{series_id}/{season}/{episode}'
-            if not os.path.exists(chat_dir):
-                os.makedirs(chat_dir, exist_ok=True)
-
-                # download & extract zip
-                download_extract_zip(link, chat_dir, bot, msg)
-
-        # Create a message with a keyboard of episodes
-        keyboard = types.InlineKeyboardMarkup()
-        row = []
-        for season, episode, link, updated, series_name in episodes:
-            # Check if subtitles exist for the episode
-            subtitle_exists = os.path.isdir(f'subtitles/series/{series_id}/{season}/{episode}')
-            # Add a check or uncheck emoji based on whether subtitles exist
-            episode_text = f"✅ E{episode}" if subtitle_exists else f"❌ E{episode}"
-            callback_data = f"episode_{episode}_season_{season}_series_id_{series_id}"
-            button = types.InlineKeyboardButton(text=episode_text, callback_data=callback_data)
-            row.append(button)
-            if len(row) == 4:
-                keyboard.row(*row)
-                row = []
-        if row:
-            keyboard.row(*row)
-        download_all_button = types.InlineKeyboardButton(text="📥 Download All (.zip)",
-                                                         callback_data=f"zip_{series_id}_season_{season}")
-        update_all = types.InlineKeyboardButton(text="🔄 Update",
-                                                callback_data=f"update_{series_id}_season_{season}")
-        keyboard.row(download_all_button)
-        keyboard.row(update_all)
-
-        message_season = f"*Download {episodes[0][4]} : Season {season}*\n _(Last updated: {datetime.datetime.strptime(episodes[0][3], '%Y-%m-%dT%H:%M:%S.%f').strftime('%d %B %Y, %H:%M:%S')})_"
-        bot.edit_message_text(message_season, call.message.chat.id, call.message.message_id, reply_markup=keyboard,
-                              parse_mode='Markdown')
-        bot.delete_message(msg.chat.id, msg.message_id)
-        logger.info(f"Sent message for series_id {series_id} and season {season}")
 
 
 bot.polling()

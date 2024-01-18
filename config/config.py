@@ -6,4 +6,5 @@ load_dotenv()
 TOKEN = os.getenv('TOKEN')
 TMDB_API_KEY = os.getenv('TMDB_API_KEY')
 HOST_URL = os.getenv('HOST_URL')
+LOG_CHANNEL_ID = os.getenv('LOG_CHANNEL_ID')
 
