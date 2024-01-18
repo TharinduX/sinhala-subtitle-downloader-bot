@@ -203,7 +203,7 @@ def download_subtitle(message):
         overview = tmdb_response['overview']
         poster_path = tmdb_response['poster_path']
         results = database.check_series_available(series_id)
-        current_datetime = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
+        current_datetime = datetime.datetime.now().strftime('%Y-%m-%d')
         if results and current_datetime[:10] == results[0][6]:
             logger.info("Series is available in the database & its up to date")
             row = []
@@ -311,7 +311,7 @@ def handle_season_button(call):
     download_all_button = types.InlineKeyboardButton(text="📥 Download All (.zip)",
                                                      callback_data=f"zip_{series_id}_season_{season}")
     keyboard.row(download_all_button)
-    message_season = f"*Download {episodes[0][4]} : Season {season}*\n _(Last updated: {datetime.datetime.strptime(episodes[0][3], '%Y-%m-%dT%H:%M:%S.%f').strftime('%d %B %Y, %H:%M:%S')})_"
+    message_season = f"*Download {episodes[0][4]} : Season {season}*\n _(Last updated: {episodes[0][3]})_"
     bot.edit_message_text(message_season, msg.chat.id, msg.message_id, reply_markup=keyboard, parse_mode='Markdown')
 
     logger.info(f"Sent message for series_id {series_id} and season {season}")

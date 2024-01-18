@@ -45,7 +45,7 @@ def fetch_series(host_url, series_name, series_id, year, overview):
                 series.append((title, season, episode, link))
                 logger.info(f"Added series to the list: {title}, Season: {season}, Episode: {episode}")
                 database.insert_tv_details(series_id, search_title, year, season, episode, link, overview,
-                                           datetime.datetime.now().isoformat())
+                                           datetime.datetime.now().strftime('%Y-%m-%d'))
                 logger.info(
                     f"Inserted series details into the database: {search_title}, Year: {year}, Season: {season}, "
                     f"Episode: {episode}")

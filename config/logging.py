@@ -32,8 +32,9 @@ def set_bot(bot_object):
 
 # Function to send logs to your Telegram channel
 def telegram_log(message):
-    # Send the message to your Telegram channel
-    bot.send_message(chat_id=chat_id, text=message)
+    if os.getenv('TELEGRAM_LOGGING') == 'TRUE':
+        # Send the message to your Telegram channel
+        bot.send_message(chat_id=chat_id, text=message)
 
 
 # Create a custom handler
