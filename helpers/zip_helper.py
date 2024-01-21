@@ -23,6 +23,7 @@ def download_extract_zip(link, chat_dir, bot, msg):
             if '/?tmstv=' in a['href']:
                 zip_url = urljoin(link, a['href'])
                 break
+                break
         r = requests.get(zip_url)
         parsed_url = urlparse(zip_url)
         file_name = os.path.basename(unquote(parsed_url.path))

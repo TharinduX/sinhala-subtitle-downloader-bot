@@ -9,7 +9,7 @@ def create_table_movie():
     conn = connect_db()
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS movie_details
-    (movie_id text UNIQUE, movie_name text, year text, baiscope_link text, overview text)''')
+    (movie_id text UNIQUE, movie_name text, year text, baiscope_link text, overview text, poster text)''')
     conn.commit()
     conn.close()
 
@@ -18,16 +18,16 @@ def create_table_tv():
     conn = connect_db()
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS tv_details (series_id text, series_name text, year text, season integer, 
-    episode integer, baiscope_link text UNIQUE, overview text, updated text)''')
+    episode integer, baiscope_link text UNIQUE, overview text, updated text, poster text)''')
     conn.commit()
     conn.close()
 
 
-def insert_details(movie_id, movie_name, year, baiscope_link, overview):
+def insert_details(movie_id, movie_name, year, baiscope_link, overview, poster):
     conn = connect_db()
     c = conn.cursor()
-    c.execute("INSERT OR IGNORE INTO movie_details VALUES (?,?,?,?,?)",
-              (movie_id, movie_name, year, baiscope_link, overview))
+    c.execute("INSERT OR IGNORE INTO movie_details VALUES (?,?,?,?,?,?)",
+              (movie_id, movie_name, year, baiscope_link, overview, poster))
     conn.commit()
     conn.close()
 
@@ -35,22 +35,17 @@ def insert_details(movie_id, movie_name, year, baiscope_link, overview):
 def get_link(movie_id):
     conn = connect_db()
     c = conn.cursor()
-    c.execute("SELECT baiscope_link FROM movie_details WHERE movie_id = ?", (movie_id,))
+    c.execute("SELECT baiscope_link, movie_name, year, poster, overview FROM movie_details WHERE movie_id = ?", (movie_id,))
     result = c.fetchone()
-    if result is None:
-        conn.close()
-        return None
-    else:
-        link = result[0]
-        conn.close()
-        return link
+    conn.close()
+    return result
 
 
-def insert_tv_details(series_id, series_name, year, season, episode, baiscope_link, overview, updated):
+def insert_tv_details(series_id, series_name, year, season, episode, baiscope_link, overview, updated, poster):
     conn = connect_db()
     c = conn.cursor()
-    c.execute("INSERT OR REPLACE INTO tv_details VALUES (?,?,?,?,?,?,?,?)",
-              (series_id, series_name, year, season, episode, baiscope_link, overview, updated))
+    c.execute("INSERT OR REPLACE INTO tv_details VALUES (?,?,?,?,?,?,?,?,?)",
+              (series_id, series_name, year, season, episode, baiscope_link, overview, updated, poster))
     conn.commit()
     conn.close()
 
@@ -117,3 +112,33 @@ def search_tv_series(series_name):
         series_id = result[0]
         conn.close()
         return series_id
+
+
+def find_series_name_search(name):
+    conn = connect_db()
+    c = conn.cursor()
+    c.execute("""
+                SELECT series_name, series_id, year, poster, overview
+                FROM tv_details 
+                WHERE series_name LIKE ? 
+                GROUP BY series_id 
+                ORDER BY series_id
+            """, ('%' + name.query + '%',))
+    rows = c.fetchall()
+    conn.close()
+    return rows
+
+
+def find_movie_name_search(name):
+    conn = connect_db()
+    c = conn.cursor()
+    c.execute("""
+                SELECT movie_name, movie_id, year, poster, overview
+                FROM movie_details 
+                WHERE movie_name LIKE ? 
+                GROUP BY movie_id 
+                ORDER BY movie_id
+            """, ('%' + name.query + '%',))
+    rows = c.fetchall()
+    conn.close()
+    return rows

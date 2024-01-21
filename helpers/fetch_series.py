@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def fetch_series(host_url, series_name, series_id, year, overview):
+def fetch_series(host_url, series_name, series_id, year, overview, poster):
     try:
         # Search for the series on the website
         logger.info(f"Fetching series names for: {series_name}")
@@ -46,7 +46,7 @@ def fetch_series(host_url, series_name, series_id, year, overview):
                     series.append((title, season, episode, link))
                     logger.info(f"Added series to the list: {title}, Season: {season}, Episode: {episode}")
                     database.insert_tv_details(series_id, search_title, year, season, episode, link, overview,
-                                               datetime.datetime.now().strftime('%Y-%m-%d'))
+                                               datetime.datetime.now().strftime('%Y-%m-%d'),poster)
                     logger.info(
                         f"Inserted series details into the database: {search_title}, Year: {year}, Season: {season}, "
                         f"Episode: {episode}")
