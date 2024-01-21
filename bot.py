@@ -44,6 +44,27 @@ def send_welcome(message):
         logger.error(f"An error occurred: {e}")
 
 
+@bot.message_handler(commands=['help'])
+def send_help(message):
+    try:
+        help_message = "👋 *Welcome to the Sinhala Subtitle Download Bot!* 🎬\n\n"
+        help_message += ("Here's what I can do:\n\n")
+        help_message += ("1. 🎥 **Search for Movies**: You can search for a movie by its name, and I'll find the "
+                            "Sinhala subtitles for it. To do this, use the `/movie` command followed by the movie name. "
+                            "For example, `/movie Titanic`.\n\n")
+        help_message += (
+            "2. 📺 **Search for TV Series**: You can search for a tv series by its name, and I'll find the "
+            "Sinhala subtitles for it. To do this, use the `/tv` command followed by the series name. For "
+            "example, `/tv Breaking Bad`.\n\n")
+        help_message += (
+            "3. 🎬 **Inline Search**: You can also search for a movie or TV series by mentioning the bot in any chat, "
+            "followed by the name of the movie or TV series. For example, `@sinhalasub_bot Titanic`. This may not always "
+            "show results because it only shows items that have been downloaded and are in the database.\n\n")
+        bot.reply_to(message, help_message, parse_mode='Markdown')
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
+
+
 @bot.message_handler(commands=['movie'])
 def search_movie(message):
     try:
@@ -100,8 +121,9 @@ def search_movie(message):
             movie_id = movie_data['id']
             title = movie_data['title']
             overview = movie_data['overview']
+            poster = movie_data['poster_path']
             year = re.search(r'\d{4}', movie_data['release_date']).group()
-            database.insert_details(movie_id, title, year, link, overview)
+            database.insert_details(movie_id, title, year, link, overview, poster)
             logger.info(f"Inserted movie details into the database: {title}, Year: {year}")
             movie_message += f"🎬 *{title}* ({year})\n"
             movie_message += f"_Download:_ /dl\_{movie_id}\n\n"
@@ -117,13 +139,17 @@ def download_subtitle(message):
     try:
         logger.info("Received a request to download subtitles.")
         movie_id = message.text.split('/dl_', 1)[1].strip()
-        link = database.get_link(movie_id)
-        if link is None:
+        result = database.get_link(movie_id)
+        if result is None:
             logger.error("Invalid command. No link found for the provided movie ID.")
             bot.reply_to(message, "This command is incorrect. Please provide a valid command.")
             return
         chat_dir = f'subtitles/movies/{movie_id}'
-
+        movie_message = ""
+        movie_message += f"🎬 *{result[1]}* ({result[2]})\n\n"
+        movie_message += f"{result[4]}\n\n"
+        bot.send_photo(message.chat.id, f"https://image.tmdb.org/t/p/original{result[3]}",
+                       caption=movie_message, parse_mode='Markdown')
         msg = bot.send_message(message.chat.id, "⏫ Uploading the subtitles...")
 
         # check if directory exists
@@ -134,7 +160,8 @@ def download_subtitle(message):
                 if file.endswith('.srt'):
                     with open(os.path.join(chat_dir, file), 'rb') as f:
                         bot.send_document(message.chat.id, f)
-            bot.edit_message_text("✅ Subtitle Uploaded", msg.chat.id, msg.message_id, parse_mode='Markdown')
+            bot.edit_message_text(f"✅ {result[1]} ({result[2]}) Subtitle Uploaded", msg.chat.id, msg.message_id,
+                                  parse_mode='Markdown')
         else:
             logger.info("Directory does not exist. Creating directory and downloading subtitles.")
             bot.edit_message_text("⏳ Almost Done...", msg.chat.id, msg.message_id, parse_mode='Markdown')
@@ -142,14 +169,14 @@ def download_subtitle(message):
             # Create a unique directory for this chat
             os.makedirs(chat_dir, exist_ok=True)
 
-            download_extract_zip(link, chat_dir, bot, msg)
-
+            download_extract_zip(result[0], chat_dir, bot, msg)
             # Send all .srt files
             for file in os.listdir(chat_dir):
                 if file.endswith(('.srt', '.ass', '.ssa', '.vtt', '.stl', '.scc', '.ttml', '.sbv', '.idx', '.sub')):
                     with open(os.path.join(chat_dir, file), 'rb') as f:
                         bot.send_document(message.chat.id, f)
-            bot.edit_message_text("✅ Subtitle Uploaded", msg.chat.id, msg.message_id, parse_mode='Markdown')
+            bot.edit_message_text(f"✅ {result[1]} ({result[2]}) Subtitle Uploaded", msg.chat.id, msg.message_id,
+                                  parse_mode='Markdown')
     except Exception as e:
         logger.error(f"An error occurred: {e}")
 
@@ -251,7 +278,7 @@ def download_subtitle(message):
 
             else:
                 logger.info("Series is not available in the database or not uptodate. Fetching series.")
-                series = fetch_series(config.HOST_URL, series_name, series_id, year, overview)
+                series = fetch_series(config.HOST_URL, series_name, series_id, year, overview, poster_path)
 
                 if not series:
                     bot.edit_message_text("I'm sorry, but I couldn't find any series matching your search.",
@@ -416,6 +443,57 @@ def zip_download(call):
         logger.info(f'Sent zip file for series_id {series_id} and season {season}')
     except Exception as e:
         logger.error(f"An error occurred: {e}")
+
+
+@bot.inline_handler(lambda query: len(query.query) > 0)
+def query_text(inline_query):
+    try:
+        # Find series names that match the query
+        series_rows = database.find_series_name_search(inline_query)
+
+        # Find movie names that match the query
+        movie_rows = database.find_movie_name_search(inline_query)
+        # Create an InlineQueryResultArticle for each matching row
+        results = []
+        for i, row in enumerate(series_rows):
+            r = types.InlineQueryResultArticle(
+                id=str(i),
+                thumbnail_url=f"https://image.tmdb.org/t/p/original{row[3]}",
+                title=row[0] + ' ' + '(' + row[2] + ') [Tv]',
+                description=row[4],
+                input_message_content=types.InputTextMessageContent(
+                    message_text="/s_" + row[1]
+                )
+            )
+            results.append(r)
+
+        for i, row in enumerate(movie_rows):
+            r = types.InlineQueryResultArticle(
+                id=str(i),
+                thumbnail_url=f"https://image.tmdb.org/t/p/original{row[3]}",
+                title=row[0] + ' ' + '(' + row[2] + ') [Movie]',
+                description=row[4],
+                input_message_content=types.InputTextMessageContent(
+                    message_text="/dl_" + row[1]
+                )
+            )
+            results.append(r)
+
+        # If no results were found, add a custom message
+        if not results:
+            r = types.InlineQueryResultArticle(
+                id='no_results',
+                title='No results, Try /tv or /movie commands',
+                input_message_content=types.InputTextMessageContent(
+                    message_text="/help"
+                )
+            )
+            results.append(r)
+
+        # Send the results
+        bot.answer_inline_query(inline_query.id, results)
+    except Exception as e:
+        print(e)
 
 
 bot.polling()
