@@ -6,6 +6,7 @@ chat_id = config.LOG_CHANNEL_ID
 
 # Initialize the bot variable
 bot = None
+log_buffer = []
 
 # Create the logs directory if it doesn't exist
 if not os.path.exists('logs'):
@@ -32,9 +33,17 @@ def set_bot(bot_object):
 
 # Function to send logs to your Telegram channel
 def telegram_log(message):
+    global log_buffer
     if os.getenv('TELEGRAM_LOGGING') == 'TRUE':
-        # Send the message to your Telegram channel
-        bot.send_message(chat_id=chat_id, text=message)
+        log_buffer.append(message)
+        if len(log_buffer) >= 15:
+            try:
+                # Send the messages in the buffer to your Telegram channel
+                bot.send_message(chat_id=chat_id, text='\n'.join(log_buffer))
+                # Clear the buffer
+                log_buffer = []
+            except Exception as e:
+                logger.error(f"An error occurred: {e}")
 
 
 # Create a custom handler

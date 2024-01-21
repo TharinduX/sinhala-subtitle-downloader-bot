@@ -105,3 +105,15 @@ def fetch_old_data(series_id):
     return result
 
 
+def search_tv_series(series_name):
+    conn = connect_db()
+    c = conn.cursor()
+    c.execute("SELECT series_id FROM tv_details WHERE series_name = ?", (series_name,))
+    result = c.fetchone()
+    if result is None:
+        conn.close()
+        return None
+    else:
+        series_id = result[0]
+        conn.close()
+        return series_id
