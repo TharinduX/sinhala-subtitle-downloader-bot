@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Sinhala Subtitle Downloader Telegram Bot is a powerful tool designed to simplify the process of obtaining Sinhala subtitles for movies and TV series. The bot offers a user-friendly interface with intuitive commands, leveraging an SQLite database for efficient data storage and retrieval.
+The Sinhala Subtitle Downloader Telegram Bot is a tool designed to simplify the process of obtaining Sinhala subtitles for movies and TV series. The bot offers a user-friendly interface with intuitive commands, leveraging an SQLite database for efficient data storage and retrieval.
 
 ## Features
 
@@ -17,8 +17,7 @@ The following environment variables are required to run the bot:
 - `TOKEN`: Bot token.
 - `TMDB_API_KEY`: TMDB API key. Get it from [The Movie Database (TMDb)](https://www.themoviedb.org/settings/api).
 - `HOST_URL`: Only works with baiscope.lk for now.
-
-- `TELEGRAM_LOGGING`: `True` or `False`. Set to `False` to avoid potential Telegram API limits caused by logging. (Needs to fix)
+- `TELEGRAM_LOGGING`: `True` or `False`.
 - `LOG_CHANNEL_ID`: Channel ID where you want to send logs. Make sure to add the bot to that channel.
 
 ## How to Run
